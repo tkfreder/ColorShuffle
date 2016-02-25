@@ -32,8 +32,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // wire up UI components
-        Button chooseImageButton = (Button)findViewById(R.id.chooseImageButton);
-        Button shuffleImageButton = (Button)findViewById(R.id.shuffleImageButton);
+        chooseImageButton = (Button)findViewById(R.id.chooseImageButton);
+        shuffleImageButton = (Button)findViewById(R.id.shuffleImageButton);
+        imageRgb = (ImageView)findViewById(R.id.imageRgb);
 
         // set action listeners
         chooseImageButton.setOnClickListener(new View.OnClickListener() {
@@ -60,21 +61,12 @@ public class MainActivity extends AppCompatActivity {
                 Cursor cursor = getContentResolver().query(selectedImage, filePathColumn, null, null, null);
                 cursor.moveToFirst();
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                String imgDecodableString = cursor.getString(columnIndex);
+                String filePath = cursor.getString(columnIndex);
                 cursor.close();
 
-                // read dimensions and type of image
-                BitmapFactory.Options options = new BitmapFactory.Options();
-                options.inJustDecodeBounds = true;
-                BitmapFactory.decodeFile(imgDecodableString, options);
-
-                ImageView imageRgb = (ImageView)findViewById(R.id.imageRgb);
-                options.inSampleSize = calculateInSampleSize(options, imageRgb.getWidth(), imageRgb.getHeight());
-
-                options.inJustDecodeBounds = false;
-
-                mBitmap = BitmapFactory
-                        .decodeFile(imgDecodableString, options);
+                // save copy of the decoded scaled down bitmap
+                mBitmap = decodeSampledBitmapFromFile(filePath, imageRgb.getWidth(), imageRgb.getHeight());
+                // load scaled down bitmap into imageview
                 imageRgb.setImageBitmap(mBitmap);
             } else {
                 Toast.makeText(this, R.string.message_no_image_chosen, Toast.LENGTH_LONG).show();
@@ -87,42 +79,60 @@ public class MainActivity extends AppCompatActivity {
         shuffleImageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                imageRgb.setImageBitmap(shuffleImage(mBitmap));
+                // save bitmap
+                mBitmap = shuffleImage(mBitmap);
+                // display bitmap
+                imageRgb.setImageBitmap(mBitmap);
             }
         });
 
     }
 
-    public static int calculateInSampleSize(
-        BitmapFactory.Options options, int reqWidth, int reqHeight) {
+    public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
         // Raw height and width of image
         final int height = options.outHeight;
         final int width = options.outWidth;
         int inSampleSize = 1;
 
         if (height > reqHeight || width > reqWidth) {
-            int scaledHeight = reqHeight / height;
-            int scaledWidth = reqWidth / width;
 
-            if (scaledHeight > scaledWidth)
-                inSampleSize = scaledHeight;
-            else
-                inSampleSize = scaledWidth;
+            final int halfHeight = height / 2;
+            final int halfWidth = width / 2;
+
+            // According to docs: the decoder uses a final value based on powers of 2, any other value will be rounded down to the nearest power of 2
+            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+            // height and width larger than the requested height and width.
+            while ((halfHeight / inSampleSize) > reqHeight
+                    && (halfWidth / inSampleSize) > reqWidth) {
+                inSampleSize *= 2;
+            }
         }
+
         return inSampleSize;
     }
 
+    public static Bitmap decodeSampledBitmapFromFile(String filePath,int reqWidth, int reqHeight) {
+        // First decode with inJustDecodeBounds=true to check dimensions
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(filePath, options);
+        // Calculate inSampleSize
+        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+        // Decode bitmap with inSampleSize set
+        options.inJustDecodeBounds = false;
+
+        return BitmapFactory.decodeFile(filePath, options);
+    }
     public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,int reqWidth, int reqHeight) {
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
         BitmapFactory.decodeResource(res, resId, options);
-
         // Calculate inSampleSize
         options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
+
         return BitmapFactory.decodeResource(res, resId, options);
     }
 
