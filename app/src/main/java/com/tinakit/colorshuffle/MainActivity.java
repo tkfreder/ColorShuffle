@@ -17,6 +17,8 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.squareup.otto.Subscribe;
+
 public class MainActivity extends AppCompatActivity {
 
     private static int RESULT_GALLERY_IMAGE = 1;
@@ -47,6 +49,9 @@ public class MainActivity extends AppCompatActivity {
                 startActivityForResult(intent, RESULT_GALLERY_IMAGE);
             }
         });
+
+        // subscribe activity to event bus
+        EventBus.getInstance().register(this);
     }
 
     @Override
@@ -64,10 +69,9 @@ public class MainActivity extends AppCompatActivity {
                 mFilePath = cursor.getString(columnIndex);
                 cursor.close();
 
+                ScaleBitmapTaskParams params = new ScaleBitmapTaskParams(mFilePath, imageRgb.getWidth(), imageRgb.getHeight());
                 // save copy of the decoded scaled down bitmap
-                mBitmap = decodeSampledBitmapFromFile(mFilePath, imageRgb.getWidth(), imageRgb.getHeight());
-                // load scaled down bitmap into imageview
-                imageRgb.setImageBitmap(mBitmap);
+                new ScaleBitmapTask().execute(params);
             } else {
                 Toast.makeText(this, R.string.message_no_image_chosen, Toast.LENGTH_LONG).show();
             }
@@ -80,7 +84,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 // save bitmap
-                mBitmap = shuffleImage(mBitmap);
+                mBitmap = BitmapUtils.shiftRGB(mBitmap);
                 // display bitmap
                 imageRgb.setImageBitmap(mBitmap);
             }
@@ -88,71 +92,16 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
-        // Raw height and width of image
-        final int height = options.outHeight;
-        final int width = options.outWidth;
-        int inSampleSize = 1;
-
-        if (height > reqHeight || width > reqWidth) {
-
-            final int halfHeight = height / 2;
-            final int halfWidth = width / 2;
-
-            // According to docs: the decoder uses a final value based on powers of 2, any other value will be rounded down to the nearest power of 2
-            // Calculate the largest inSampleSize value that is a power of 2 and keeps both
-            // height and width larger than the requested height and width.
-            while ((halfHeight / inSampleSize) > reqHeight
-                    && (halfWidth / inSampleSize) > reqWidth) {
-                inSampleSize *= 2;
-            }
-        }
-        return inSampleSize;
+    @Override
+    protected void onDestroy() {
+        EventBus.getInstance().unregister(this);
+        super.onDestroy();
     }
 
-    public static Bitmap decodeSampledBitmapFromFile(String filePath,int reqWidth, int reqHeight) {
-        // First decode with inJustDecodeBounds=true to check dimensions
-        final BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeFile(filePath, options);
-        // Calculate inSampleSize
-        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        // set to mutable
-        options.inMutable = true;
-        // Decode bitmap with inSampleSize set
-        options.inJustDecodeBounds = false;
-
-        return BitmapFactory.decodeFile(filePath, options);
-    }
-    public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,int reqWidth, int reqHeight) {
-        // First decode with inJustDecodeBounds=true to check dimensions
-        final BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inJustDecodeBounds = true;
-        BitmapFactory.decodeResource(res, resId, options);
-        // Calculate inSampleSize
-        options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
-        // set to mutable
-        options.inMutable = true;
-        // Decode bitmap with inSampleSize set
-        options.inJustDecodeBounds = false;
-
-        return BitmapFactory.decodeResource(res, resId, options);
-    }
-
-    public Bitmap shuffleImage(Bitmap bitmap){
-        // reference: http://stackoverflow.com/questions/20157194/looping-through-bitmap-pixels-to-change-color-of-a-bitmap-in-android
-        for (int x = 0; x < bitmap.getWidth(); x++) {
-            for (int y = 0; y < bitmap.getHeight(); y++) {
-                int colorRGB = bitmap.getPixel(x,y);
-                int red = Color.red(colorRGB);
-                int green = Color.green(colorRGB);
-                int blue = Color.blue(colorRGB);
-
-                // shift rgb values 1 place to the right
-                bitmap.setPixel(x, y, Color.rgb(blue, red, green));
-            }
-        }
-        return bitmap;
+    @Subscribe
+    public void onAsyncTaskResult(ScaleBitmapTaskResultEvent event) {
+        mBitmap = event.getResult();
+        imageRgb.setImageBitmap(mBitmap);
     }
 
     @Override
