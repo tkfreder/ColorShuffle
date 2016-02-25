@@ -25,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
     protected Button shuffleImageButton;
     protected ImageView imageRgb;
     private Bitmap mBitmap;
+    private String mFilePath;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,7 +52,6 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
         try {
             // check if request came from Gallery image picker
             if (requestCode == RESULT_GALLERY_IMAGE && resultCode == RESULT_OK && null != data) {
@@ -61,11 +61,11 @@ public class MainActivity extends AppCompatActivity {
                 Cursor cursor = getContentResolver().query(selectedImage, filePathColumn, null, null, null);
                 cursor.moveToFirst();
                 int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
-                String filePath = cursor.getString(columnIndex);
+                mFilePath = cursor.getString(columnIndex);
                 cursor.close();
 
                 // save copy of the decoded scaled down bitmap
-                mBitmap = decodeSampledBitmapFromFile(filePath, imageRgb.getWidth(), imageRgb.getHeight());
+                mBitmap = decodeSampledBitmapFromFile(mFilePath, imageRgb.getWidth(), imageRgb.getHeight());
                 // load scaled down bitmap into imageview
                 imageRgb.setImageBitmap(mBitmap);
             } else {
@@ -107,7 +107,6 @@ public class MainActivity extends AppCompatActivity {
                 inSampleSize *= 2;
             }
         }
-
         return inSampleSize;
     }
 
@@ -118,6 +117,8 @@ public class MainActivity extends AppCompatActivity {
         BitmapFactory.decodeFile(filePath, options);
         // Calculate inSampleSize
         options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+        // set to mutable
+        options.inMutable = true;
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
 
@@ -130,6 +131,8 @@ public class MainActivity extends AppCompatActivity {
         BitmapFactory.decodeResource(res, resId, options);
         // Calculate inSampleSize
         options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
+        // set to mutable
+        options.inMutable = true;
         // Decode bitmap with inSampleSize set
         options.inJustDecodeBounds = false;
 
@@ -146,7 +149,7 @@ public class MainActivity extends AppCompatActivity {
                 int blue = Color.blue(colorRGB);
 
                 // shift rgb values 1 place to the right
-                bitmap.setPixel(x, y, Color.rgb(green, red, blue));
+                bitmap.setPixel(x, y, Color.rgb(blue, red, green));
             }
         }
         return bitmap;
