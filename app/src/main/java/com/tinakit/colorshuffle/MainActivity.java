@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.support.v4.util.LruCache;
@@ -23,6 +24,7 @@ import com.squareup.otto.Subscribe;
 public class MainActivity extends AppCompatActivity {
 
     private static int RESULT_GALLERY_IMAGE = 1;
+    private static int MAX_IMAGES_CACHED = 3;
 
     protected Button mChooseButton;
     protected Button mShuffleButton;
@@ -30,6 +32,9 @@ public class MainActivity extends AppCompatActivity {
     protected ProgressBar mProgressBar;
     private Bitmap mBitmap;
     private String mFilePath;
+    private LruCache<String, Bitmap> mMemoryCache;
+    private int shuffleIndex = 0;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,10 +47,25 @@ public class MainActivity extends AppCompatActivity {
         mImage = (ImageView)findViewById(R.id.imageRgb);
         mProgressBar = (ProgressBar)findViewById(R.id.progressBar);
 
+        // set up memory cache
+        final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+        // Use 1/8 of available memory for this memory cache.
+        final int cacheSize = maxMemory / MAX_IMAGES_CACHED;
+        mMemoryCache = new LruCache<String, Bitmap>(cacheSize) {
+            @Override
+             protected int sizeOf(String key, Bitmap bitmap) {
+             // The cache size will be measured in kilobytes rather than number of items.
+             return bitmap.getByteCount() / 1024;
+             }
+        };
+
         // set action listeners
         mChooseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                // reset index
+                shuffleIndex = 0;
+                // launch Gallery
                 Intent intent = new Intent(Intent.ACTION_PICK,
                         android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 intent.setType("image/*");
@@ -57,7 +77,11 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
                 mProgressBar.setVisibility(View.VISIBLE);
-                new ColorTask().execute(mBitmap);            }
+                shuffleIndex++;
+                int adjustedIndex = shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED;
+                loadBitmap(mFilePath + String.valueOf(adjustedIndex), mImage);
+                //new ColorTask().execute(mBitmap);
+            }
         });
 
         // subscribe activity to event bus
@@ -67,6 +91,8 @@ public class MainActivity extends AppCompatActivity {
     public void onSaveInstanceState(Bundle bundle) {
         if (mBitmap != null){
             bundle.putParcelable("image", mBitmap);
+            bundle.putString("filePath", mFilePath);
+            bundle.putInt("shuffleIndex", shuffleIndex);
         }
         super.onSaveInstanceState(bundle);
     }
@@ -75,8 +101,32 @@ public class MainActivity extends AppCompatActivity {
         super.onRestoreInstanceState(savedInstanceState);
         if (savedInstanceState != null && savedInstanceState.containsKey("image")){
             mBitmap = (Bitmap) savedInstanceState.getParcelable("image");
+            mFilePath = savedInstanceState.getString("filePath");
+            shuffleIndex = savedInstanceState.getInt("shuffleIndex");
+            // TODO: this might come in handy for LurCache, specifying the width and height of imageview
+            //mBitmap=Bitmap.createScaledBitmap(mBitmap,mImage.getWidth(),mImage.getHeight(), true);
             mImage.setImageBitmap(mBitmap);
             mShuffleButton.setEnabled(true);
+        }
+    }
+
+    public void addBitmapToMemoryCache(String key, Bitmap bitmap) {
+        if (getBitmapFromMemCache(key) == null) {
+            mMemoryCache.put(key, bitmap);
+        }
+    }
+
+    public Bitmap getBitmapFromMemCache(String key) {
+        return mMemoryCache.get(key);
+    }
+
+    public void loadBitmap(String imageKey, ImageView imageView) {
+        Bitmap bitmap = getBitmapFromMemCache(imageKey);
+        if (bitmap != null) {
+            imageView.setImageBitmap(bitmap);
+            mProgressBar.setVisibility(View.GONE);
+        } else {
+            new ColorTask().execute(mBitmap);
         }
     }
 
@@ -116,17 +166,24 @@ public class MainActivity extends AppCompatActivity {
 
     @Subscribe
     public void onScaleTaskResult(ScaleTaskResultEvent event) {
-        mBitmap = event.getResult();
+        Bitmap bitmap = event.getResult();
         // load bitmap
-        mImage.setImageBitmap(mBitmap);
+        mImage.setImageBitmap(bitmap);
         mProgressBar.setVisibility(View.GONE);
+        // save first image
+        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex), bitmap);
+        // save current bitmap
+        mBitmap = Bitmap.createBitmap(bitmap);
     }
 
     @Subscribe
     public void onColorTaskResult(ColorTaskResultEvent event) {
-        mBitmap = event.getResult();
+        Bitmap bitmap = event.getResult();
+        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex), bitmap);
         mImage.setImageBitmap(mBitmap);
         mProgressBar.setVisibility(View.GONE);
+        //save current bitmap
+        mBitmap = Bitmap.createBitmap(bitmap);
     }
 
     @Override
