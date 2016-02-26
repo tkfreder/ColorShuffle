@@ -5,4 +5,5 @@
     <string name="message_error_choose_image">An error occurred in choosing image.</string>
     <string name="button_choose_image">Choose Image</string>
     <string name="button_shuffle">Shuffle</string>
+    <string name="message_no_permission_photos">This feature requires your permission to access photos.</string>
 </resources>

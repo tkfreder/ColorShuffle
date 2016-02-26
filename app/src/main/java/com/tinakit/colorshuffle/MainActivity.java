@@ -1,13 +1,18 @@
 package com.tinakit.colorshuffle;
 
+import android.Manifest;
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.MediaStore;
+import android.support.v4.app.ActivityCompat;
 import android.support.v4.util.LruCache;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -25,6 +30,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static int RESULT_GALLERY_IMAGE = 1;
     private static int MAX_IMAGES_CACHED = 3;
+    private final static int PERMISSIONS_REQUEST_READ_WRITE_STORAGE = 123;
+    private static String[] PERMISSIONS_STORAGE = {
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
 
     protected Button mChooseButton;
     protected Button mShuffleButton;
@@ -34,7 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private String mFilePath;
     private LruCache<String, Bitmap> mMemoryCache;
     private int shuffleIndex = 0;
-
+    private Uri mSelectedImage;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,8 +75,16 @@ public class MainActivity extends AppCompatActivity {
                 // reset index
                 shuffleIndex = 0;
                 // launch Gallery
-                Intent intent = new Intent(Intent.ACTION_PICK,
-                        android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+                /*
+                Intent intent = new Intent();
+                // Show only images, no videos or anything else
+                intent.setType("image/*");
+                intent.setAction(Intent.ACTION_GET_CONTENT);
+                // Always show the chooser (if there are multiple options available)
+                startActivityForResult(Intent.createChooser(intent, "Select Picture"), RESULT_GALLERY_IMAGE);
+*/
+
+                Intent intent = new Intent(Intent.ACTION_PICK,android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 intent.setType("image/*");
                 startActivityForResult(intent, RESULT_GALLERY_IMAGE);
             }
@@ -136,18 +154,14 @@ public class MainActivity extends AppCompatActivity {
         try {
             // check if request came from Gallery image picker
             if (requestCode == RESULT_GALLERY_IMAGE && resultCode == RESULT_OK && null != data) {
-                // Get the Image from data
-                Uri selectedImage = data.getData();
-                String[] filePathColumn = { MediaStore.Images.Media.DATA };
-                Cursor cursor = getContentResolver().query(selectedImage, filePathColumn, null, null, null);
-                cursor.moveToFirst();
-                mFilePath = cursor.getString(cursor.getColumnIndex(filePathColumn[0]));
-                cursor.close();
-
-                mProgressBar.setVisibility(View.VISIBLE);
-                mShuffleButton.setEnabled(true);
-                // scale image
-                new ScaleTask().execute(mFilePath, mImage.getWidth(), mImage.getHeight());
+                // cache data
+                mSelectedImage = data.getData();
+                // check app permissions, API 23 or higher
+                if (Build.VERSION.SDK_INT >= 23) {
+                    verifyStoragePermissions(this);
+                } else {
+                    loadFirstImage();
+                }
             } else {
                 mShuffleButton.setEnabled(false);
                 Toast.makeText(this, R.string.message_no_image_chosen, Toast.LENGTH_LONG).show();
@@ -156,6 +170,20 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.message_error_choose_image, Toast.LENGTH_LONG)
                     .show();
         }
+    }
+
+    private void loadFirstImage(){
+        // Get the Image from data
+        String[] filePathColumn = { MediaStore.Images.Media.DATA };
+        Cursor cursor = getContentResolver().query(mSelectedImage, filePathColumn, null, null, null);
+        cursor.moveToFirst();
+        mFilePath = cursor.getString(cursor.getColumnIndex(filePathColumn[0]));
+        cursor.close();
+
+        mProgressBar.setVisibility(View.VISIBLE);
+        mShuffleButton.setEnabled(true);
+        // scale image
+        new ScaleTask().execute(mFilePath, mImage.getWidth(), mImage.getHeight());
     }
 
     @Override
@@ -179,7 +207,7 @@ public class MainActivity extends AppCompatActivity {
     @Subscribe
     public void onColorTaskResult(ColorTaskResultEvent event) {
         Bitmap bitmap = event.getResult();
-        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED), bitmap);
+        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex % MAX_IMAGES_CACHED), bitmap);
         mImage.setImageBitmap(mBitmap);
         mProgressBar.setVisibility(View.GONE);
         //save current bitmap
@@ -191,6 +219,47 @@ public class MainActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_main, menu);
         return true;
+    }
+
+    /**
+     * Checks if the app has permission to write to device storage
+     *
+     * If the app does not has permission then the user will be prompted to grant permissions
+     *
+     * @param activity
+     */
+    public static void verifyStoragePermissions(Activity activity) {
+        // Check if we have write permission
+        int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            // We don't have permission so prompt the user
+            ActivityCompat.requestPermissions(
+                    activity,
+                    PERMISSIONS_STORAGE,
+                    PERMISSIONS_REQUEST_READ_WRITE_STORAGE
+            );
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSIONS_REQUEST_READ_WRITE_STORAGE: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    loadFirstImage();
+                } else {
+
+                    Toast.makeText(this, getString(R.string.message_no_permission_photos), Toast.LENGTH_LONG);
+                }
+                return;
+            }
+
+            // other 'case' lines to check for other
+            // permissions this app might request
+        }
     }
 
     @Override
