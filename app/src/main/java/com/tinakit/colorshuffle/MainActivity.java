@@ -24,8 +24,8 @@ public class MainActivity extends AppCompatActivity {
 
     private static int RESULT_GALLERY_IMAGE = 1;
 
-    protected Button chooseImageButton;
-    protected Button shuffleImageButton;
+    protected Button mChooseButton;
+    protected Button mShuffleButton;
     protected ImageView mImage;
     protected ProgressBar mProgressBar;
     private Bitmap mBitmap;
@@ -37,13 +37,13 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         // wire up UI components
-        chooseImageButton = (Button)findViewById(R.id.chooseImageButton);
-        shuffleImageButton = (Button)findViewById(R.id.shuffleImageButton);
+        mChooseButton = (Button)findViewById(R.id.chooseImageButton);
+        mShuffleButton = (Button)findViewById(R.id.shuffleImageButton);
         mImage = (ImageView)findViewById(R.id.imageRgb);
         mProgressBar = (ProgressBar)findViewById(R.id.progressBar);
 
         // set action listeners
-        chooseImageButton.setOnClickListener(new View.OnClickListener() {
+        mChooseButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(Intent.ACTION_PICK,
@@ -53,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        shuffleImageButton.setOnClickListener(new View.OnClickListener() {
+        mShuffleButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 mProgressBar.setVisibility(View.VISIBLE);
@@ -78,11 +78,12 @@ public class MainActivity extends AppCompatActivity {
                 mFilePath = cursor.getString(cursor.getColumnIndex(filePathColumn[0]));
                 cursor.close();
 
-                // display progress bar
                 mProgressBar.setVisibility(View.VISIBLE);
+                mShuffleButton.setEnabled(true);
                 // scale image
                 new ScaleTask().execute(mFilePath, mImage.getWidth(), mImage.getHeight());
             } else {
+                mShuffleButton.setEnabled(false);
                 Toast.makeText(this, R.string.message_no_image_chosen, Toast.LENGTH_LONG).show();
             }
         } catch (Exception e) {
@@ -103,7 +104,6 @@ public class MainActivity extends AppCompatActivity {
         // load bitmap
         mImage.setImageBitmap(mBitmap);
         mProgressBar.setVisibility(View.GONE);
-        new ColorTask().execute(mBitmap);
     }
 
     @Subscribe

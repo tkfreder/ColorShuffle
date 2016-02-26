@@ -24,7 +24,8 @@
             android:layout_height="wrap_content"
             android:layout_centerHorizontal="true"
             android:layout_below="@+id/chooseImageButton"
-            android:text="@string/button_shuffle"/>
+            android:text="@string/button_shuffle"
+            android:enabled="false"/>
     </RelativeLayout>
 
     <ImageView
