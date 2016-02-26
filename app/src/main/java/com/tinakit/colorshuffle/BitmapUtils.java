@@ -4,6 +4,10 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
+
+import java.io.IOException;
 
 /**
  * Created by Tina on 2/25/2016.
@@ -32,9 +36,9 @@ public class BitmapUtils {
     }
 
     public static Bitmap decodeSampledBitmapFromFile(String filePath,int reqWidth, int reqHeight) {
-        // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
+        // First decode with inJustDecodeBounds=true to check dimensions
         BitmapFactory.decodeFile(filePath, options);
         // Calculate inSampleSize
         options.inSampleSize = calculateInSampleSize(options, reqWidth, reqHeight);
@@ -68,7 +72,6 @@ public class BitmapUtils {
                 int red = Color.red(colorRGB);
                 int green = Color.green(colorRGB);
                 int blue = Color.blue(colorRGB);
-
                 // shift rgb values 1 place to the right
                 bitmap.setPixel(x, y, Color.rgb(blue, red, green));
             }
