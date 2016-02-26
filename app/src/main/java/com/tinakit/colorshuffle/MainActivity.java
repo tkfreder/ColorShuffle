@@ -35,7 +35,6 @@ public class MainActivity extends AppCompatActivity {
     private LruCache<String, Bitmap> mMemoryCache;
     private int shuffleIndex = 0;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -78,9 +77,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 mProgressBar.setVisibility(View.VISIBLE);
                 shuffleIndex++;
-                int adjustedIndex = shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED;
-                loadBitmap(mFilePath + String.valueOf(adjustedIndex), mImage);
-                //new ColorTask().execute(mBitmap);
+                loadBitmap(mFilePath + String.valueOf(shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED), mImage);
             }
         });
 
@@ -100,12 +97,13 @@ public class MainActivity extends AppCompatActivity {
     public void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
         if (savedInstanceState != null && savedInstanceState.containsKey("image")){
-            mBitmap = (Bitmap) savedInstanceState.getParcelable("image");
+            Bitmap bitmap = (Bitmap) savedInstanceState.getParcelable("image");
             mFilePath = savedInstanceState.getString("filePath");
-            shuffleIndex = savedInstanceState.getInt("shuffleIndex");
-            // TODO: this might come in handy for LurCache, specifying the width and height of imageview
-            //mBitmap=Bitmap.createScaledBitmap(mBitmap,mImage.getWidth(),mImage.getHeight(), true);
-            mImage.setImageBitmap(mBitmap);
+            mImage.setImageBitmap(bitmap);
+            // MemoryCache is empty, save first image
+            addBitmapToMemoryCache(mFilePath + String.valueOf(0), bitmap);
+            // save current bitmap
+            mBitmap = Bitmap.createBitmap(bitmap);
             mShuffleButton.setEnabled(true);
         }
     }
@@ -125,6 +123,8 @@ public class MainActivity extends AppCompatActivity {
         if (bitmap != null) {
             imageView.setImageBitmap(bitmap);
             mProgressBar.setVisibility(View.GONE);
+            // save current bitmap
+            mBitmap = Bitmap.createBitmap(bitmap);
         } else {
             new ColorTask().execute(mBitmap);
         }
@@ -171,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
         mImage.setImageBitmap(bitmap);
         mProgressBar.setVisibility(View.GONE);
         // save first image
-        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex), bitmap);
+        addBitmapToMemoryCache(mFilePath + String.valueOf(0), bitmap);
         // save current bitmap
         mBitmap = Bitmap.createBitmap(bitmap);
     }
@@ -179,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
     @Subscribe
     public void onColorTaskResult(ColorTaskResultEvent event) {
         Bitmap bitmap = event.getResult();
-        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex), bitmap);
+        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED), bitmap);
         mImage.setImageBitmap(mBitmap);
         mProgressBar.setVisibility(View.GONE);
         //save current bitmap
