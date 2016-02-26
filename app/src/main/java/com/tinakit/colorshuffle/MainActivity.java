@@ -1,11 +1,8 @@
 package com.tinakit.colorshuffle;
 
 import android.content.Intent;
-import android.content.res.Resources;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.graphics.Color;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.support.v7.app.AppCompatActivity;
@@ -69,9 +66,8 @@ public class MainActivity extends AppCompatActivity {
                 mFilePath = cursor.getString(columnIndex);
                 cursor.close();
 
-                ScaleBitmapTaskParams params = new ScaleBitmapTaskParams(mFilePath, imageRgb.getWidth(), imageRgb.getHeight());
                 // save copy of the decoded scaled down bitmap
-                new ScaleBitmapTask().execute(params);
+                new ScaleTask().execute(mFilePath, imageRgb.getWidth(), imageRgb.getHeight());
             } else {
                 Toast.makeText(this, R.string.message_no_image_chosen, Toast.LENGTH_LONG).show();
             }
@@ -83,10 +79,13 @@ public class MainActivity extends AppCompatActivity {
         shuffleImageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                new ColorTask().execute(mBitmap);
+                /*
                 // save bitmap
                 mBitmap = BitmapUtils.shiftRGB(mBitmap);
                 // display bitmap
                 imageRgb.setImageBitmap(mBitmap);
+                */
             }
         });
 
@@ -99,7 +98,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Subscribe
-    public void onAsyncTaskResult(ScaleBitmapTaskResultEvent event) {
+    public void onAsyncTaskResult(ScaleTaskResultEvent event) {
+        mBitmap = event.getResult();
+        imageRgb.setImageBitmap(mBitmap);
+    }
+
+    @Subscribe
+    public void onAsyncTaskResult(ColorTaskResultEvent event) {
         mBitmap = event.getResult();
         imageRgb.setImageBitmap(mBitmap);
     }
