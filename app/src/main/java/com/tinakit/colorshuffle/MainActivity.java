@@ -1,10 +1,13 @@
 package com.tinakit.colorshuffle;
 
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.provider.MediaStore;
+import android.support.v4.util.LruCache;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.Menu;
@@ -19,12 +22,15 @@ import com.squareup.otto.Subscribe;
 public class MainActivity extends AppCompatActivity {
 
     private static int RESULT_GALLERY_IMAGE = 1;
+    private static int MAX_IMAGES_CACHED = 3;
 
     protected Button chooseImageButton;
     protected Button shuffleImageButton;
     protected ImageView imageRgb;
     private Bitmap mBitmap;
     private String mFilePath;
+    private LruCache<String, Bitmap> mMemoryCache;
+    private int shuffleIndex = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +41,20 @@ public class MainActivity extends AppCompatActivity {
         chooseImageButton = (Button)findViewById(R.id.chooseImageButton);
         shuffleImageButton = (Button)findViewById(R.id.shuffleImageButton);
         imageRgb = (ImageView)findViewById(R.id.imageRgb);
+
+        // set up memory cache
+        final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
+
+        // Use 1/8 of available memory for this memory cache.
+        final int cacheSize = maxMemory / 8;
+
+        mMemoryCache = new LruCache<String, Bitmap>(cacheSize) {
+            @Override
+            protected int sizeOf(String key, Bitmap bitmap) {
+                // The cache size will be measured in kilobytes rather than number of items.
+                return bitmap.getByteCount() / 1024;
+            }
+        };
 
         // set action listeners
         chooseImageButton.setOnClickListener(new View.OnClickListener() {
@@ -49,6 +69,25 @@ public class MainActivity extends AppCompatActivity {
 
         // subscribe activity to event bus
         EventBus.getInstance().register(this);
+    }
+
+    public void addBitmapToMemoryCache(String key, Bitmap bitmap) {
+        if (getBitmapFromMemCache(key) == null) {
+            mMemoryCache.put(key, bitmap);
+        }
+    }
+
+    public Bitmap getBitmapFromMemCache(String key) {
+        return mMemoryCache.get(key);
+    }
+
+    public void loadBitmap(String imageKey, ImageView imageView) {
+        Bitmap bitmap = getBitmapFromMemCache(imageKey);
+        if (bitmap != null) {
+            imageView.setImageBitmap(bitmap);
+        } else {
+            new ColorTask().execute(mBitmap);
+        }
     }
 
     @Override
@@ -66,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
                 mFilePath = cursor.getString(columnIndex);
                 cursor.close();
 
-                // save copy of the decoded scaled down bitmap
+                // scale image
                 new ScaleTask().execute(mFilePath, imageRgb.getWidth(), imageRgb.getHeight());
             } else {
                 Toast.makeText(this, R.string.message_no_image_chosen, Toast.LENGTH_LONG).show();
@@ -79,13 +118,8 @@ public class MainActivity extends AppCompatActivity {
         shuffleImageButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new ColorTask().execute(mBitmap);
-                /*
-                // save bitmap
-                mBitmap = BitmapUtils.shiftRGB(mBitmap);
-                // display bitmap
-                imageRgb.setImageBitmap(mBitmap);
-                */
+                shuffleIndex++;
+                loadBitmap(mFilePath + String.valueOf(shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED), imageRgb);
             }
         });
 
@@ -98,14 +132,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Subscribe
-    public void onAsyncTaskResult(ScaleTaskResultEvent event) {
+    public void onScaleTaskResult(ScaleTaskResultEvent event) {
         mBitmap = event.getResult();
+        // load bitmap
         imageRgb.setImageBitmap(mBitmap);
+        // wait one second
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        // save first image
+        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex), mBitmap);
+        // increment image index
+        shuffleIndex++;
+        // load image from cache or load a new one
+        loadBitmap(mFilePath + String.valueOf(shuffleIndex < MAX_IMAGES_CACHED ? shuffleIndex : shuffleIndex%MAX_IMAGES_CACHED), imageRgb);
     }
 
     @Subscribe
-    public void onAsyncTaskResult(ColorTaskResultEvent event) {
+    public void onColorTaskResult(ColorTaskResultEvent event) {
         mBitmap = event.getResult();
+        addBitmapToMemoryCache(mFilePath + String.valueOf(shuffleIndex), mBitmap);
         imageRgb.setImageBitmap(mBitmap);
     }
 
