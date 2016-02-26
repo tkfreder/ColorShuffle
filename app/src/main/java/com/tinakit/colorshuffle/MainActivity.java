@@ -65,24 +65,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public void onSaveInstanceState(Bundle bundle) {
-        if (mFilePath != null && !mFilePath.isEmpty()) {
-            bundle.putString("filePath", mFilePath);
-        }
-        super.onSaveInstanceState(bundle);
-    }
-
-    public void onRestoreInstanceState(Bundle savedInstanceState) {
-        super.onRestoreInstanceState(savedInstanceState);
-
-        // display bitmap if there was a config change
-        if (savedInstanceState != null){
-            if(savedInstanceState.containsKey("filePath"))
-                new ScaleTask().execute(savedInstanceState.getString("filePath"), mImage.getWidth(), mImage.getHeight());
-        }
-    }
-
-    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         try {
