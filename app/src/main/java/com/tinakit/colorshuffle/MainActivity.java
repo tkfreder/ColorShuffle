@@ -64,6 +64,22 @@ public class MainActivity extends AppCompatActivity {
         EventBus.getInstance().register(this);
     }
 
+    public void onSaveInstanceState(Bundle bundle) {
+        if (mBitmap != null){
+            bundle.putParcelable("image", mBitmap);
+        }
+        super.onSaveInstanceState(bundle);
+    }
+
+    public void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        if (savedInstanceState != null && savedInstanceState.containsKey("image")){
+            mBitmap = (Bitmap) savedInstanceState.getParcelable("image");
+            mImage.setImageBitmap(mBitmap);
+            mShuffleButton.setEnabled(true);
+        }
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
