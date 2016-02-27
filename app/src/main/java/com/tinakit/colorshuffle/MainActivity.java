@@ -45,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private LruCache<String, Bitmap> mMemoryCache;
     private int shuffleIndex = 0;
     private Uri mSelectedImage;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -75,15 +76,6 @@ public class MainActivity extends AppCompatActivity {
                 // reset index
                 shuffleIndex = 0;
                 // launch Gallery
-                /*
-                Intent intent = new Intent();
-                // Show only images, no videos or anything else
-                intent.setType("image/*");
-                intent.setAction(Intent.ACTION_GET_CONTENT);
-                // Always show the chooser (if there are multiple options available)
-                startActivityForResult(Intent.createChooser(intent, "Select Picture"), RESULT_GALLERY_IMAGE);
-*/
-
                 Intent intent = new Intent(Intent.ACTION_PICK,android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
                 intent.setType("image/*");
                 startActivityForResult(intent, RESULT_GALLERY_IMAGE);
@@ -228,7 +220,7 @@ public class MainActivity extends AppCompatActivity {
      *
      * @param activity
      */
-    public static void verifyStoragePermissions(Activity activity) {
+    public void verifyStoragePermissions(Activity activity) {
         // Check if we have write permission
         int permission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
@@ -239,7 +231,8 @@ public class MainActivity extends AppCompatActivity {
                     PERMISSIONS_STORAGE,
                     PERMISSIONS_REQUEST_READ_WRITE_STORAGE
             );
-        }
+        }else
+            loadFirstImage();
     }
 
     @Override
@@ -256,9 +249,6 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return;
             }
-
-            // other 'case' lines to check for other
-            // permissions this app might request
         }
     }
 
