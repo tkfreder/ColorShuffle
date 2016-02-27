@@ -14,6 +14,9 @@ import java.io.IOException;
  */
 public class BitmapUtils {
 
+    //**********************************************************************************************
+    //  calculateInSampleSize
+    //**********************************************************************************************
     public static int calculateInSampleSize(BitmapFactory.Options options, int reqWidth, int reqHeight) {
         // Raw height and width of image
         final int height = options.outHeight;
@@ -35,6 +38,9 @@ public class BitmapUtils {
         return inSampleSize;
     }
 
+    //**********************************************************************************************
+    //  decodeSampledBitmapFromFile
+    //**********************************************************************************************
     public static Bitmap decodeSampledBitmapFromFile(String filePath,int reqWidth, int reqHeight) {
         final BitmapFactory.Options options = new BitmapFactory.Options();
         options.inJustDecodeBounds = true;
@@ -49,6 +55,10 @@ public class BitmapUtils {
 
         return BitmapFactory.decodeFile(filePath, options);
     }
+
+    //**********************************************************************************************
+    //  decodeSampledBitmapFromResource
+    //**********************************************************************************************
     public static Bitmap decodeSampledBitmapFromResource(Resources res, int resId,int reqWidth, int reqHeight) {
         // First decode with inJustDecodeBounds=true to check dimensions
         final BitmapFactory.Options options = new BitmapFactory.Options();
@@ -64,6 +74,9 @@ public class BitmapUtils {
         return BitmapFactory.decodeResource(res, resId, options);
     }
 
+    //**********************************************************************************************
+    //  shiftRGB
+    //**********************************************************************************************
     public static Bitmap shiftRGB(Bitmap bitmap){
         // reference: http://stackoverflow.com/questions/20157194/looping-through-bitmap-pixels-to-change-color-of-a-bitmap-in-android
         for (int x = 0; x < bitmap.getWidth(); x++) {

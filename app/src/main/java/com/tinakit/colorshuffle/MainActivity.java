@@ -2,13 +2,10 @@ package com.tinakit.colorshuffle;
 
 import android.Manifest;
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.MediaStore;
@@ -46,6 +43,9 @@ public class MainActivity extends AppCompatActivity {
     private int shuffleIndex = 0;
     private Uri mSelectedImage;
 
+    //**********************************************************************************************
+    //  onCreate
+    //**********************************************************************************************
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,6 +95,9 @@ public class MainActivity extends AppCompatActivity {
         EventBus.getInstance().register(this);
     }
 
+    //**********************************************************************************************
+    //  onSaveInstanceState
+    //**********************************************************************************************
     public void onSaveInstanceState(Bundle bundle) {
         if (mBitmap != null){
             bundle.putParcelable("image", mBitmap);
@@ -104,6 +107,9 @@ public class MainActivity extends AppCompatActivity {
         super.onSaveInstanceState(bundle);
     }
 
+    //**********************************************************************************************
+    //  onRestoreInstanceState
+    //**********************************************************************************************
     public void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
         if (savedInstanceState != null && savedInstanceState.containsKey("image")){
@@ -118,16 +124,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //**********************************************************************************************
+    //  addBitmapToMemoryCache
+    //**********************************************************************************************
     public void addBitmapToMemoryCache(String key, Bitmap bitmap) {
         if (getBitmapFromMemCache(key) == null) {
             mMemoryCache.put(key, bitmap);
         }
     }
 
+    //**********************************************************************************************
+    //  getBitmapFromMemCache
+    //**********************************************************************************************
     public Bitmap getBitmapFromMemCache(String key) {
         return mMemoryCache.get(key);
     }
 
+    //**********************************************************************************************
+    //  loadBitmap
+    //**********************************************************************************************
     public void loadBitmap(String imageKey, ImageView imageView) {
         Bitmap bitmap = getBitmapFromMemCache(imageKey);
         if (bitmap != null) {
@@ -140,6 +155,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //**********************************************************************************************
+    //  onActivityResult
+    //**********************************************************************************************
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -164,6 +182,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //**********************************************************************************************
+    //  loadFirstImage
+    //**********************************************************************************************
     private void loadFirstImage(){
         // Get the Image from data
         String[] filePathColumn = { MediaStore.Images.Media.DATA };
@@ -178,12 +199,18 @@ public class MainActivity extends AppCompatActivity {
         new ScaleTask().execute(mFilePath, mImage.getWidth(), mImage.getHeight());
     }
 
+    //**********************************************************************************************
+    //  onDestroy
+    //**********************************************************************************************
     @Override
     protected void onDestroy() {
         EventBus.getInstance().unregister(this);
         super.onDestroy();
     }
 
+    //**********************************************************************************************
+    //  onScaleTaskResult
+    //**********************************************************************************************
     @Subscribe
     public void onScaleTaskResult(ScaleTaskResultEvent event) {
         Bitmap bitmap = event.getResult();
@@ -196,6 +223,9 @@ public class MainActivity extends AppCompatActivity {
         mBitmap = Bitmap.createBitmap(bitmap);
     }
 
+    //**********************************************************************************************
+    //  onColorTaskResult
+    //**********************************************************************************************
     @Subscribe
     public void onColorTaskResult(ColorTaskResultEvent event) {
         Bitmap bitmap = event.getResult();
@@ -204,13 +234,6 @@ public class MainActivity extends AppCompatActivity {
         mProgressBar.setVisibility(View.GONE);
         //save current bitmap
         mBitmap = Bitmap.createBitmap(bitmap);
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
     }
 
     /**
@@ -235,6 +258,9 @@ public class MainActivity extends AppCompatActivity {
             loadFirstImage();
     }
 
+    //**********************************************************************************************
+    //  onRequestPermissionsResult
+    //**********************************************************************************************
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         switch (requestCode) {
@@ -250,6 +276,13 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
         }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
     }
 
     @Override
